@@ -13,7 +13,6 @@ export function NotificationCard({ notification, isRead, onMarkRead }) {
       sx={{ 
         borderRadius: 2,
         cursor: "pointer",
-        // Highlight unread notifications with a subtle blue tint
         backgroundColor: isRead ? "transparent" : "#f0f7ff",
         borderColor: isRead ? "divider" : "primary.light",
         transition: "background-color 0.2s ease",
@@ -25,7 +24,6 @@ export function NotificationCard({ notification, isRead, onMarkRead }) {
       <CardContent>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
           <Stack direction="row" spacing={1} alignItems="center">
-            {/* Visual blue dot indicator for unread */}
             {!isRead && (
               <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "primary.main" }} />
             )}
@@ -40,7 +38,6 @@ export function NotificationCard({ notification, isRead, onMarkRead }) {
           </Typography>
         </Stack>
         
-        {/* Bolder text if unread */}
         <Typography variant="body1" sx={{ fontWeight: isRead ? 400 : 600 }}>
           {message}
         </Typography>

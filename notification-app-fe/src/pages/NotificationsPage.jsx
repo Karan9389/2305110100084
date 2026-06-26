@@ -26,23 +26,27 @@ const WEIGHTS = {
 export function NotificationsPage() {
   const [filter, setFilter] = useState("All");
   const [page, setPage] = useState(1);
-  const [tabIndex, setTabIndex] = useState(0); // 0 = Standard Inbox, 1 = Priority Inbox
+  const [tabIndex, setTabIndex] = useState(0); 
   const [readIds, setReadIds] = useState([]);
 
-  const { notifications, loading, error } = useNotifications();
+  const limit = tabIndex === 1 ? 50 : 10;
+  const activeFilter = tabIndex === 0 ? filter : "All";
 
-  // Load viewed notifications from LocalStorage on mount
+  const { notifications, loading, error } = useNotifications(page, limit, activeFilter);
+
   useEffect(() => {
     const stored = localStorage.getItem("viewed_notifications");
     if (stored) {
-      setReadIds(JSON.parse(stored));
+      try {
+        setReadIds(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse read notifications.");
+      }
     }
   }, []);
 
-  // Mark as read and save to LocalStorage
   const handleMarkAsRead = (id) => {
     if (!id || readIds.includes(id)) return;
-    
     const newReadIds = [...readIds, id];
     setReadIds(newReadIds);
     localStorage.setItem("viewed_notifications", JSON.stringify(newReadIds));
@@ -50,7 +54,7 @@ export function NotificationsPage() {
 
   const handleTabChange = (event, newValue) => {
     setTabIndex(newValue);
-    setPage(1); // Reset page on tab switch
+    setPage(1); 
   };
 
   const handleFilterChange = (event, newFilter) => {
@@ -60,42 +64,31 @@ export function NotificationsPage() {
     }
   };
 
-  // Logic for both standard filtering and Priority Top 10
   const displayNotifications = useMemo(() => {
     if (!notifications || notifications.length === 0) return [];
 
-    let filtered = notifications;
-
     if (tabIndex === 0) {
-      // Standard Inbox View
-      if (filter !== "All") {
-        filtered = notifications.filter(n => (n.type || n.Type) === filter);
-      }
+      return notifications; 
     } else {
-      // Priority Inbox View (Top 10)
-      filtered = [...notifications]
+      return [...notifications]
         .sort((a, b) => {
           const typeA = a.type || a.Type;
           const typeB = b.type || b.Type;
-
           const weightA = WEIGHTS[typeA] || 0;
           const weightB = WEIGHTS[typeB] || 0;
 
           if (weightA !== weightB) {
-            return weightB - weightA;
+            return weightB - weightA; 
           }
 
           const timeA = new Date(a.createdAt || a.Timestamp || a.timestamp).getTime();
           const timeB = new Date(b.createdAt || b.Timestamp || b.timestamp).getTime();
-          return timeB - timeA;
+          return timeB - timeA; 
         })
         .slice(0, 10);
     }
+  }, [notifications, tabIndex]);
 
-    return filtered;
-  }, [notifications, tabIndex, filter]);
-
-  // Dynamically calculate unread count based on localStorage state
   const unreadCount = notifications 
     ? notifications.filter(n => !readIds.includes(n.ID || n.id)).length 
     : 0;
@@ -111,7 +104,6 @@ export function NotificationsPage() {
         </Typography>
       </Stack>
 
-      {/* Tabs to simulate a different page for Priority Inbox */}
       <Tabs value={tabIndex} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Standard Inbox" />
         <Tab label="Priority Inbox" />
@@ -119,7 +111,6 @@ export function NotificationsPage() {
 
       <Divider sx={{ mb: 3 }} />
 
-      {/* Only show category filters in the standard inbox */}
       {tabIndex === 0 && (
         <Box sx={{ marginBottom: 3 }}>
           <NotificationFilter value={filter} onChange={handleFilterChange} />
@@ -159,9 +150,9 @@ export function NotificationsPage() {
       {!loading && tabIndex === 0 && (
         <Box display="flex" justifyContent="center" mt={4}>
           <Pagination
-            count={10} // Adjust based on your API's actual total pages
+            count={10} 
             page={page}
-            onChange={handlePageChange}
+            onChange={(e, p) => setPage(p)}
             color="primary"
             shape="rounded"
           />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { fetchNotifications } from "../api/notifications"; 
+import { fetchNotifications } from "../api/notifications";
 
-export function useNotifications() {
+export function useNotifications(page, limit, filterType) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -9,8 +9,9 @@ export function useNotifications() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const data = await fetchNotifications();
+        const data = await fetchNotifications({ page, limit, type: filterType });
         setNotifications(data.notifications || data || []); 
       } catch (err) {
         setError(err.message);
@@ -20,7 +21,7 @@ export function useNotifications() {
     };
 
     load();
-  }, []);
+  }, [page, limit, filterType]);
 
   return { notifications, loading, error };
 }
