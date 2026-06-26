@@ -144,5 +144,66 @@ These are my solutions:
 * **Pros and Cons:** No redundant DB hits and a real-time user experience; but now we have to maintain thousands of open connections on the back end that require lots of memory.
 
 ```
+---
+
+# Stage 5
+
+### Shortcomings of the Current Implementation
+Looking at the provided pseudocode, there are three massive red flags for a production system trying to process 50,000 users:
+
+1. **It's Synchronous and Blocking:** The code runs in a sequential `for` loop. If the Email API takes just 200ms per request, processing 50,000 students will take almost 3 hours. The UI will likely time out, leaving the HR user wondering if it actually worked.
+2. **Zero Fault Tolerance:** As the logs indicated, it failed on 200 students midway. In a standard loop, an unhandled exception breaks the entire process. The remaining students get nothing, and it's incredibly difficult to retry the failed ones without accidentally sending duplicate emails to the students who already received them.
+3. **Tight Coupling:** The system ties a fast, internal operation (saving to our DB) to a slow, external operation (calling a third-party Email API). 
+
+### Should DB saving and Email happen together?
+**Absolutely not.** They need to be decoupled. 
+Writing to our database is mission-critical for our application's state and is extremely fast. Sending an email relies on an external provider (like SendGrid or AWS SES), which is subject to network latency, rate limits, and unexpected downtimes. A failure in the external email service should never prevent the notification from appearing inside our actual app.
+
+### The Redesign: Message Queues
+To make this reliable and lightning-fast, we need an asynchronous, event-driven architecture. 
+
+When HR clicks "Notify All", the main thread should only do two things: execute a single **bulk insert** into the database, and quickly push 50,000 "jobs" into a Message Broker (like RabbitMQ, Kafka, or Redis/BullMQ). Then, background worker servers will pull jobs from these queues at their own pace.
+### Revised Pseudocode
+```
+---
+const emailQueue = new Queue('email_notifications');
+const pushQueue = new Queue('app_push_notifications');
+
+async function notifyAll(studentIds, message) {
+    try {
+        await bulkSaveToDb(studentIds, message);
+        
+        // 2. Map arrays to job objects for the queues
+        const emailJobs = studentIds.map(id => ({ 
+            name: 'sendEmail', 
+            data: { studentId: id, message } 
+        }));
+        
+        const pushJobs = studentIds.map(id => ({ 
+            name: 'sendPush', 
+            data: { studentId: id, message } 
+        }));
+        await emailQueue.addBulk(emailJobs);
+        await pushQueue.addBulk(pushJobs);
+        
+        return { success: true, message: "Notifications queued successfully." };
+    } catch (error) {
+        console.error("Failed to queue notifications", error);
+    }
+}
+
+
+emailQueue.process('sendEmail', async (job) => {
+    try {
+        await sendEmailAPI(job.data.studentId, job.data.message);
+    } catch (error) {
+        // Throwing an error tells the queue to retry this specific job later
+        throw new Error("Email API Failed, retrying..."); 
+    }
+});
+pushQueue.process('sendPush', async (job) => {
+    await pushToAppWebSocket(job.data.studentId, job.data.message);
+});
+```
 
 ```
