@@ -1,4 +1,4 @@
-# Stage 1
+#-------- Stage 1--------
 
 ### Core Actions
 After looking at the requirements, I think the notification platform needs to handle four main things for logged-in users:
@@ -71,7 +71,7 @@ For all these endpoints, I'm assuming we'll pass the standard `Authorization: Be
 
 
 
-Stage 2
+--------Stage 2--------
 Database Choice
 Iwould recommend using a relational database such as PostgreSQL.
 Even though NoSQL seems appealing because of the large volumes, our notifications' data is really structured (we know that it will always contain the following elements: type, user id, status, and message). Postgres does very well with structured data, its indexing is top-notch, and in case we need to store some extra metadata for certain types of notifications, we could use JSONB column.
@@ -115,7 +115,7 @@ SELECT COUNT(id) FROM notifications WHERE user_id = 'user123' AND is_read = fals
 
 
 
-Step 3
+--------Step 3--------
 Analysis of the Slow Query
 Here is the query for this particular slow query developed by the previous developer:
 SELECT * FROM notifications WHERE studentID = 1042 AND isRead = false ORDER BY createdAt ASC;
@@ -137,3 +137,26 @@ SELECT DISTINCT studentID
 FROM notifications 
 WHERE notificationType = 'Placement' 
 AND createdAt >= NOW() - INTERVAL 7 DAY
+
+
+
+
+
+
+-------Stage 4--------
+Overcoming Overwhelmed DB
+If the database is struggling because the frontend is making notifications requests every time the page is refreshed, then it basically comes down to polling issue. We need to stop the flow from the frontend directly to DB.
+
+These are my solutions:
+
+Solution #1: Introduce Redis Cache
+
+How it works: Every time a user logs in, we grab his/her notifications and unread count and put them in the Redis. In the next several minutes, every page refresh would request those info not from DB but from Redis.
+
+Pros/Cons: It greatly relieves DB from the load and extremely fast. Con is eventual consistency and we need to implement proper cache invalidation to prevent user missing some notification.
+
+Strategy 2: Use SSE (Server-Sent Events)
+
+How does it work? We stop making the front end request data on each route switch. The front-end will request the data only once upon login and will keep the SSE connection open. The server simply sends the notification directly to the client without any delay.
+
+Pros and Cons: No redundant DB hits and a real-time user experience; but now we have to maintain thousands of open connections on the back end that require lots of memory.
