@@ -1,3 +1,6 @@
+Here is your complete, updated markdown file. I have fixed a minor formatting issue with the Stage 6 heading and seamlessly appended the final **Stage 7** design decisions and architectural implementations based on the work we just completed.
+
+You can copy and paste this entire block directly into your `notification-system-design.md` file:
 
 ```markdown
 # Stage 1
@@ -208,22 +211,48 @@ pushQueue.process('sendPush', async (job) => {
 });
 
 ```
-## Stage 6
+
+---
+
+# Stage 6
 
 ### Priority Inbox Algorithm
+
 In order to provide a "Priority Inbox" which will always display the 10 most important notifications, the sorting should be done on two aspects:
+
 1. **Main Sorting by Weight:** Placement (Weight: 3) > Result (Weight: 2) > Event (Weight: 1);
 2. **Secondary Sorting by Recency:** newest first (`DESC`).
 
 ### Efficient Sorting of Real-Time Stream
-Doing `O(N log N)` sorting of the whole array every time when the new record is added by real-time stream is not very efficient.
 
-As we need just **Top 10** records, we do not have to sort all records ever received. The optimal algorithm here is to keep bounded sorted array (or Min-Heap) consisting of 10 elements.
-When a new record comes:
-1. It should be compared with the lowest priority element currently present in the Top 10;
-2. If it has greater weight (or same weight but more recent), then it should be inserted at the proper place using Binary Insertion `O(log 10)`;
-3. And the 11-th element should be popped from the end of the array.
-Since the array will never contain more than 10 elements, the insertion complexity will actually become `O(1)`.
+Doing `O(N log N)` sorting of the whole array every time when the new record is added by a real-time stream is not very efficient.
+
+As we need just the **Top 10** records, we do not have to sort all records ever received. The optimal algorithm here is to keep a bounded sorted array (or Min-Heap) consisting of exactly 10 elements.
+When a new record comes in:
+
+1. It is compared with the lowest priority element currently present in the Top 10.
+2. If it has a greater weight (or the same weight but is more recent), then it should be inserted at the proper place using Binary Insertion `O(log 10)`.
+3. The 11th element is then popped from the end of the array.
+Since the array will never contain more than 10 elements, the insertion complexity effectively becomes `O(1)`.
+
+---
+
+# Stage 7
+
+### Frontend Architecture Enhancements
+
+To finalize the production-readiness of the frontend application, several strict requirements were successfully implemented:
+
+**1. Strict Port Configuration:** The Vite development server was explicitly configured in `vite.config.js` to run on `http://localhost:3000` (`strictPort: true`) to align with backend CORS expectations.
+
+**2. Frontend Logging Middleware:** A custom `logger.js` utility was introduced to intercept all API calls. This middleware wraps the native `fetch` API, safely capturing and formatting HTTP statuses. It automatically logs request initializations, execution times (in milliseconds), payload sizes, and errors to the console, ensuring easier debugging and monitoring without cluttering the UI component logic.
+
+**3. Dynamic Query Parameters:** The `fetchNotifications` API function was upgraded to dynamically construct `URLSearchParams`. It now successfully maps the React component's state to the backend by passing `page`, `limit`, and `notification_type` parameters, allowing for robust server-side pagination and targeted filtering.
+
+**4. Distinct Priority View (Tabs):** To satisfy the requirement of displaying Priority Notifications on a different view without introducing a heavy router setup, Material UI `Tabs` were implemented. This cleanly and immediately separates the "Standard Inbox" (which allows pagination and category filtering) from the "Priority Inbox" (which strictly displays the computed top 10 items).
+
+**5. Persisting Read/Unread State:** Since the backend API evaluation endpoints are currently read-only (GET), the requirement to distinguish between "New" and "Viewed" notifications was handled via browser `localStorage`. When a user clicks a notification card, its unique ID is persisted. The UI dynamically highlights unread notifications with a subtle blue tint, a blue dot indicator, and bolder text. Once clicked, the UI updates to a read state and decrements the global unread badge count instantly.
+
 ```
 
 ```
